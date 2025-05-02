@@ -164,6 +164,7 @@ freeproc(struct proc *p)
   p->sz = 0;
   p->pid = 0;
   p->parent = 0;
+  p->cwd_name[0] = 0;
   p->name[0] = 0;
   p->chan = 0;
   p->killed = 0;
@@ -248,7 +249,7 @@ userinit(void)
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
-  safestrappend(p->cwd_name, "/");
+  safestrcpy(p->cwd_name, "/", sizeof(p->cwd_name));
 
   p->state = RUNNABLE;
 
@@ -308,8 +309,8 @@ fork(void)
     if(p->ofile[i])
       np->ofile[i] = filedup(p->ofile[i]);
   np->cwd = idup(p->cwd);
-  safestrappend(np->cwd_name, p->cwd_name);
 
+  safestrcpy(np->cwd_name, p->cwd_name, sizeof(p->cwd_name));
   safestrcpy(np->name, p->name, sizeof(p->name));
 
   pid = np->pid;

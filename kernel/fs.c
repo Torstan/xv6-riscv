@@ -649,16 +649,16 @@ skipelem(char *path, char *name)
 // path element into name, which must have room for DIRSIZ bytes.
 // Must be called inside a transaction since it calls iput().
 static struct inode*
-namex(char *path, int nameiparent, char *name, char* abspath)
+namex(char *path, int nameiparent, char *name, char* abspath, int* left_len)
 {
   struct inode *ip, *next;
 
   if(*path == '/') {
     ip = iget(ROOTDEV, ROOTINO);
-    abspath = safestrappend(abspath, "/");
+    abspath = safestrappend(abspath, "/", left_len);
   } else {
     ip = idup(myproc()->cwd);
-    abspath = safestrappend(abspath, myproc()->cwd_name);
+    abspath = safestrappend(abspath, myproc()->cwd_name, left_len);
   }
 
   while((path = skipelem(path, name)) != 0){
@@ -677,8 +677,8 @@ namex(char *path, int nameiparent, char *name, char* abspath)
       return 0;
     }
     iunlockput(ip);
-    abspath = safestrappend(abspath, "/");
-    abspath = safestrappend(abspath, name);
+    abspath = safestrappend(abspath, "/", left_len);
+    abspath = safestrappend(abspath, name, left_len);
     ip = next;
   }
   if(nameiparent){
@@ -689,10 +689,10 @@ namex(char *path, int nameiparent, char *name, char* abspath)
 }
 
 struct inode*
-nameipath(char* path, char* abspath)
+nameipath(char* path, char* abspath, int* left_len)
 {
   char name[DIRSIZ];
-  return namex(path, 0, name, abspath);
+  return namex(path, 0, name, abspath, left_len);
 }
 
 struct inode*
@@ -700,12 +700,14 @@ namei(char *path)
 {
   char name[DIRSIZ];
   char abspath[MAXPATH];
-  return namex(path, 0, name, abspath);
+  int left_len = sizeof(abspath);
+  return namex(path, 0, name, abspath, &left_len);
 }
 
 struct inode*
 nameiparent(char *path, char *name)
 {
   char abspath[MAXPATH];
-  return namex(path, 1, name, abspath);
+  int left_len = sizeof(abspath);
+  return namex(path, 1, name, abspath, &left_len);
 }

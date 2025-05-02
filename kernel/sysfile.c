@@ -411,11 +411,12 @@ sys_chdir(void)
 {
   char path[MAXPATH];
   char abspath[MAXPATH];
+  int left_len = sizeof(abspath);
   struct inode *ip;
   struct proc *p = myproc();
   
   begin_op();
-  if(argstr(0, path, MAXPATH) < 0 || (ip = nameipath(path, abspath)) == 0){
+  if(argstr(0, path, MAXPATH) < 0 || (ip = nameipath(path, abspath, &left_len)) == 0){
     end_op();
     return -1;
   }
@@ -429,7 +430,7 @@ sys_chdir(void)
   iput(p->cwd);
   end_op();
   p->cwd = ip;
-  safestrappend(p->cwd_name, abspath);
+  safestrcpy(p->cwd_name, abspath, sizeof(p->cwd_name));
   return 0;
 }
 
@@ -533,7 +534,7 @@ sys_exec(void)
     argv[0] = kalloc();
     if(!argv[0])
       goto bad;
-    safestrcpy(argv[0], npath, sizeof(npath));
+    safestrcpy(argv[0], npath, PGSIZE);
   }
 
   int ret = exec(new_iterp ? npath : path, argv);
