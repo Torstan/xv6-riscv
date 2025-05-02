@@ -13,6 +13,12 @@
 
 #define MAXARGS 10
 
+char whitespace[] = " \t\r\n\v";
+char symbols[] = "<|>&;()";
+
+#define MAXPATH 128
+static char binpath[MAXPATH]; //used for search bin
+
 struct cmd {
   int type;
 };
@@ -54,6 +60,17 @@ void panic(char*);
 struct cmd *parsecmd(char*);
 void runcmd(struct cmd*) __attribute__((noreturn));
 
+void
+fixcmdpath(char** cmd)
+{
+  int len = strlen(binpath) + strlen(*cmd);
+  char* new_cmd = malloc(len + 1);
+  strcpy(new_cmd, binpath);
+  strcpy(new_cmd + strlen(binpath), *cmd);
+  free(*cmd);
+  *cmd = new_cmd;
+}
+
 // Execute cmd.  Never returns.
 void
 runcmd(struct cmd *cmd)
@@ -76,6 +93,8 @@ runcmd(struct cmd *cmd)
     ecmd = (struct execcmd*)cmd;
     if(ecmd->argv[0] == 0)
       exit(1);
+    
+    fixcmdpath(&ecmd->argv[0]);
     exec(ecmd->argv[0], ecmd->argv);
     fprintf(2, "exec %s failed\n", ecmd->argv[0]);
     break;
@@ -156,6 +175,9 @@ main(void)
     }
   }
 
+  //set default bin path to "/"
+  binpath[0] = '/';
+  binpath[1] = '\0';
   // Read and run input commands.
   while(getcmd(buf, sizeof(buf)) >= 0){
     if(buf[0] == 'c' && buf[1] == 'd' && buf[2] == ' '){
@@ -172,6 +194,13 @@ main(void)
       } else {
         fprintf(2, "%s\n", path);
       }
+      continue;
+    }
+    if (buf[0] == 'p' && buf[1] == 'a' && buf[2] == 't' && buf[3] == 'h' && buf[4] == ' ') {
+      const char* s = buf + 5;
+      while (*s && strchr(whitespace,*s)) s++;
+      buf[strlen(buf) - 1] = '\0'; //trim tail \n
+      strcpy(binpath, s);
       continue;
     }
     if(fork1() == 0)
@@ -268,9 +297,6 @@ backcmd(struct cmd *subcmd)
 }
 //PAGEBREAK!
 // Parsing
-
-char whitespace[] = " \t\r\n\v";
-char symbols[] = "<|>&;()";
 
 int
 gettoken(char **ps, char *es, char **q, char **eq)
