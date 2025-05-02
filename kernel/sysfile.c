@@ -445,11 +445,58 @@ sys_pwd(void)
   return 0;
 }
 
+//read first two letters to check whether is #!, eg. /interp
+//if yes, then path = /interp, argv array is: /interp myproc arg1
+//return 1 for set new interp, 0 for not, -1 for error
+static int
+newinterp(char* path, char* npath)
+{
+  struct inode *ip;
+
+  begin_op();
+  if((ip = namei(path)) == 0) {
+    end_op();
+    return -1;
+  }
+  ilock(ip);
+
+  //TODO: assume length of interp address is less than 1024
+  char buf[1024];
+  memset(buf, 0, sizeof(buf));
+  //check if #!
+  if(readi(ip, 0, (uint64)buf, 0, sizeof(buf)) < 0)
+    goto bad;
+
+  iunlockput(ip);
+  end_op();
+  ip = 0;
+
+  if(buf[0] == '#' && buf[1] == '!'){
+    const char *s = buf + 2;
+    while(*s && *s != '\n' && s < buf + sizeof(buf)){
+      *npath = *s;
+      ++ npath;
+      ++ s;
+    }
+
+    *npath = '\0';
+    return 1;
+  } else {
+    return 0;
+  }
+bad:
+  if(ip){
+    iunlockput(ip);
+    end_op();
+  }
+  return -1;
+}
+
 uint64
 sys_exec(void)
 {
-  char path[MAXPATH], *argv[MAXARG];
-  int i;
+  char path[MAXPATH], *argv[MAXARG], npath[MAXPATH];
+  int i, argc = 0;
   uint64 uargv, uarg;
 
   argaddr(1, &uargv);
@@ -464,6 +511,7 @@ sys_exec(void)
     if(fetchaddr(uargv+sizeof(uint64)*i, (uint64*)&uarg) < 0){
       goto bad;
     }
+    ++ argc;
     if(uarg == 0){
       argv[i] = 0;
       break;
@@ -475,7 +523,20 @@ sys_exec(void)
       goto bad;
   }
 
-  int ret = exec(path, argv);
+  int new_iterp = newinterp(path, npath);
+  if (new_iterp < 0)
+    goto bad;
+  if (new_iterp){
+    for(i=argc; i>0; --i)
+      argv[i] = argv[i-1];
+
+    argv[0] = kalloc();
+    if(!argv[0])
+      goto bad;
+    safestrcpy(argv[0], npath, sizeof(npath));
+  }
+
+  int ret = exec(new_iterp ? npath : path, argv);
 
   for(i = 0; i < NELEM(argv) && argv[i] != 0; i++)
     kfree(argv[i]);
