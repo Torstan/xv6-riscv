@@ -248,6 +248,7 @@ userinit(void)
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
+  safestrappend(p->cwd_name, "/");
 
   p->state = RUNNABLE;
 
@@ -307,6 +308,7 @@ fork(void)
     if(p->ofile[i])
       np->ofile[i] = filedup(p->ofile[i]);
   np->cwd = idup(p->cwd);
+  safestrappend(np->cwd_name, p->cwd_name);
 
   safestrcpy(np->name, p->name, sizeof(p->name));
 
@@ -364,6 +366,7 @@ exit(int status)
   iput(p->cwd);
   end_op();
   p->cwd = 0;
+  p->cwd_name[0] = '\0';
 
   acquire(&wait_lock);
 

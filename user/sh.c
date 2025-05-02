@@ -165,6 +165,15 @@ main(void)
         fprintf(2, "cannot cd %s\n", buf+3);
       continue;
     }
+    if(buf[0] == 'p' && buf[1] == 'w' && buf[2] == 'd' && buf[3] == '\n'){
+      char path[256];
+      if (pwd(path) < 0) {
+        fprintf(2, "sys_pwd failed\n");
+      } else {
+        fprintf(2, "%s\n", path);
+      }
+      continue;
+    }
     if(fork1() == 0)
       runcmd(parsecmd(buf));
     wait(0);

@@ -649,14 +649,17 @@ skipelem(char *path, char *name)
 // path element into name, which must have room for DIRSIZ bytes.
 // Must be called inside a transaction since it calls iput().
 static struct inode*
-namex(char *path, int nameiparent, char *name)
+namex(char *path, int nameiparent, char *name, char* abspath)
 {
   struct inode *ip, *next;
 
-  if(*path == '/')
+  if(*path == '/') {
     ip = iget(ROOTDEV, ROOTINO);
-  else
+    abspath = safestrappend(abspath, "/");
+  } else {
     ip = idup(myproc()->cwd);
+    abspath = safestrappend(abspath, myproc()->cwd_name);
+  }
 
   while((path = skipelem(path, name)) != 0){
     ilock(ip);
@@ -674,6 +677,8 @@ namex(char *path, int nameiparent, char *name)
       return 0;
     }
     iunlockput(ip);
+    abspath = safestrappend(abspath, "/");
+    abspath = safestrappend(abspath, name);
     ip = next;
   }
   if(nameiparent){
@@ -684,14 +689,23 @@ namex(char *path, int nameiparent, char *name)
 }
 
 struct inode*
+nameipath(char* path, char* abspath)
+{
+  char name[DIRSIZ];
+  return namex(path, 0, name, abspath);
+}
+
+struct inode*
 namei(char *path)
 {
   char name[DIRSIZ];
-  return namex(path, 0, name);
+  char abspath[MAXPATH];
+  return namex(path, 0, name, abspath);
 }
 
 struct inode*
 nameiparent(char *path, char *name)
 {
-  return namex(path, 1, name);
+  char abspath[MAXPATH];
+  return namex(path, 1, name, abspath);
 }

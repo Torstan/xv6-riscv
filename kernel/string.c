@@ -95,6 +95,7 @@ safestrcpy(char *s, const char *t, int n)
   return os;
 }
 
+
 int
 strlen(const char *s)
 {
@@ -105,3 +106,13 @@ strlen(const char *s)
   return n;
 }
 
+char*
+safestrappend(char* s, const char *t)
+{
+  int n = strlen(t);
+  if (n <= 0)
+    return s;
+  while (n-- > 0 && (*s ++ = *t ++) != 0);
+  *s = 0;
+  return s;
+}

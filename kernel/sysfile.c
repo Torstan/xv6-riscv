@@ -410,11 +410,12 @@ uint64
 sys_chdir(void)
 {
   char path[MAXPATH];
+  char abspath[MAXPATH];
   struct inode *ip;
   struct proc *p = myproc();
   
   begin_op();
-  if(argstr(0, path, MAXPATH) < 0 || (ip = namei(path)) == 0){
+  if(argstr(0, path, MAXPATH) < 0 || (ip = nameipath(path, abspath)) == 0){
     end_op();
     return -1;
   }
@@ -428,6 +429,19 @@ sys_chdir(void)
   iput(p->cwd);
   end_op();
   p->cwd = ip;
+  safestrappend(p->cwd_name, abspath);
+  return 0;
+}
+
+uint64
+sys_pwd(void)
+{
+  struct proc* p = myproc();
+  uint64 cn; //user pointer to cwd_name
+  argaddr(0, &cn);
+  if(copyout(p->pagetable, cn, p->cwd_name, strlen(p->cwd_name)+1) < 0){
+    return -1;
+  }
   return 0;
 }
 
