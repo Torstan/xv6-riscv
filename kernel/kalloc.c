@@ -75,11 +75,12 @@ kalloc(void)
 
   acquire(&kmem.lock);
   r = kmem.freelist;
-  if(r)
+  if(r) {
     kmem.freelist = r->next;
-  if(kmem.free_pgs == 0)
-    panic("no free pages");
-  -- kmem.free_pgs;
+    if(kmem.free_pgs == 0)
+      panic("no free pages");
+    -- kmem.free_pgs;
+  }
   release(&kmem.lock);
 
   if(r)
